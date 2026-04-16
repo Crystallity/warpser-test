@@ -46,7 +46,7 @@ async fn main() {
     let args = Args::parse();
 
     // Load config file
-    let config: Config = match input::config(&args.config) {
+    let mut config: Config = match input::config(&args.config) {
         Ok(c) => {c}
         Err(ConfigNotFoundError) => {
             if args.file_dir == None && args.web_dir == None {
@@ -63,6 +63,13 @@ async fn main() {
         return;
     }
 
+    if args.web_dir != None {
+        config.files.web_dir = args.web_dir;
+    }
+    if args.file_dir != None {
+        config.files.file_dir = args.file_dir;
+    }
+
     // Unix-like systems require root priviledges to bind to port 80
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     if sudo::check() == sudo::RunningAs::User {
@@ -73,12 +80,9 @@ async fn main() {
         }
     }
 
-    // Warp filter variable
-    let routes = warp::get();
-
     // Serve site directory
-    let site = warp::fs::dir("./web/");
-
+    let site = warp::fs::dir(config.files.web_dir.unwrap());
+    
     // Start server
     println!("Hosting server on port 80");
     warp::serve(site).run(([0, 0, 0, 0], 80)).await;
